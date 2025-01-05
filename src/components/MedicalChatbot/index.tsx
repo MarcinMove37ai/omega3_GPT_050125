@@ -22,6 +22,8 @@ interface ChatResponse {
   sources: Array<any>;
 }
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
 // Example records to show after first interaction
 const exampleRecords = [
   {
@@ -258,7 +260,7 @@ const handleSendMessage = async (e: React.FormEvent) => {
       }
     };
 
-    const response = await fetch('${process.env.NEXT_PUBLIC_API_URL}i/chat', {
+    const response = await fetch(`${API_URL}/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
