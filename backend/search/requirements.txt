@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+python-dotenv
+kdbai-client
+voyageai
+transformers
+pandas
+numpy
+pydantic

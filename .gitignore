@@ -1,40 +1,69 @@
-# dependencies
-/node_modules
-/.pnp
-.pnp.js
+# Pliki środowiskowe
+*.env
+**/*.env
 
-# next.js
-/.next/
-/out/
-
-# production
-/build
-dist/
-
-# misc
-.DS_Store
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# IDE
-.idea/
-*.iml
-.vscode/
-
-# Python
-__pycache__/
-*.py[cod]
-.venv/
-venv/
-
-# logs
+# Logi i raporty
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+**/*.log
 
-# coverage
-/coverage
+# Pliki Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Next.js build i cache
+.next/
+
+# Webpack cache
+.cache/
+**/cache/
+**/*.hot-update.*
+
+# Node.js
+node_modules/
+
+# Systemowe
+.DS_Store
+Thumbs.db
+
+# Pliki generowane przez IDE
+.idea/
+.vscode/
+*.iml
+
+# Buildy i dist
+dist/
+build/
+
+# Testy i raporty pokrycia kodu
+coverage/
+*.lcov
+*.lcov.info
+
+# Pliki tymczasowe
+*.tmp
+*.swp
+*.swo
+
+# Zabezpieczenie kluczy i wrażliwych danych
+*.key
+*.crt
+secrets.json
+credentials.json
+
+# Pliki z frontendów
+public/build/
+public/assets/
+
+# Eksportowane pliki
+*.zip
+*.tar
+*.gz
+*.7z
+*.rar
+
+# Specyficzne dla projektu
+backend/search/__pycache__/
+backend/search/api.log
+

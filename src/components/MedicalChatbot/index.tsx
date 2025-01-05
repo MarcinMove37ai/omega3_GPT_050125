@@ -1,12 +1,20 @@
 'use client';
 
+import { SearchModule } from '@/lib/search_module';
 import React, { useState, useRef, useEffect } from 'react';
 import { Send } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import SearchControls from '@/components/ui/SearchControls';
+import StudyCard from '@/components/ui/StudyCard';
+import type { Source } from '@/types';
+import FormattedMessage from '@/components/ui/FormattedMessage';
+import CustomTooltip from "@/components/ui/CustomTooltip";
+import ChatSidebar from '@/components/ui/ChatSidebar';
 
 interface Message {
-  type: 'user' | 'bot';
+  type: 'user' | 'assistant';
   content: string;
+  timestamp?: number; // opcjonalne, do sortowania
 }
 
 interface ChatResponse {
@@ -118,49 +126,61 @@ const exampleRecords = [
 const BANNER_HEIGHT = 40;
 const SCROLL_THRESHOLD = 50;
 const SCROLL_DEBOUNCE = 50;
+const searchModule = new SearchModule();
 
 const MedicalChatbot = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [sources, setSources] = useState<Array<any>>([]);
+  const [sources, setSources] = useState<Source[]>([]);
+  const [selectedStudy, setSelectedStudy] = useState<Source | null>(null);
   const [isTableExpanded, setIsTableExpanded] = useState(false);
   const [showBanner, setShowBanner] = useState(true);
   const [hasInteracted, setHasInteracted] = useState(false);
-
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastScrollPosition = useRef(0);
   const scrollTimeoutRef = useRef<NodeJS.Timeout>();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const isScrollingUp = useRef(false);
+  const [searchType, setSearchType] = useState<'semantic' | 'statistical' | 'hybrid'>('hybrid');
+  const [topK, setTopK] = useState(12);
+  const [queryMode, setQueryMode] = useState<'last' | 'all'>('all');
+  const [alpha, setAlpha] = useState<number>(0.65);
 
-  const columns = [
-    {
-      key: '__nn_distance',
-      label: 'SIM',
-      width: '80px',
-      format: (value: number) => (typeof value === 'number' ? (1 - value).toFixed(4) : 'N/A'),
-    },
-    {
-      key: 'PMID',
-      label: 'PMID',
-      width: '100px',
-      format: (value: string) => value || 'N/A',
-    },
-    {
-      key: 'domain_primary',
-      label: 'Dziedzina',
-      width: '120px',
-      format: (value: string) => value || 'N/A',
-    },
-    {
-      key: 'title',
-      label: 'Tytuł',
-      width: '400px',
-      format: (value: string) => value || 'N/A',
-    },
-  ];
+const handleNewChat = () => {
+    setMessages([]);
+    setSources([]);
+    setInputValue('');
+    setHasInteracted(false);
+  };
+
+const columns = [
+  {
+    key: 'index', // zmiana z 'similarity'
+    label: 'Lp.',
+    width: '60px', // możemy zmniejszyć szerokość, bo liczby porządkowe będą krótsze
+    format: (_: any, index: number) => (index + 1), // formatowanie zwraca numer porządkowy
+  },
+  {
+    key: 'PMID',
+    label: 'PMID',
+    width: '100px',
+    format: (value: string) => value || 'N/A',
+  },
+  {
+    key: 'domain_primary',
+    label: 'Dziedzina',
+    width: '120px',
+    format: (value: string) => value || 'N/A',
+  },
+  {
+    key: 'title',
+    label: 'Tytuł',
+    width: '400px',
+    format: (value: string) => value || 'N/A',
+  },
+];
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -203,53 +223,94 @@ const MedicalChatbot = () => {
   };
 
   const prepareConversationHistory = () => {
-    return messages.map(msg => ({
-      role: msg.type === 'user' ? 'user' : 'assistant',
-      content: msg.content
-    }));
-  };
+  return messages.map(msg => ({
+    role: msg.type,
+    content: msg.content
+  }));
+};
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const userInput = inputValue.trim();
-    if (!userInput) return;
+const handleSendMessage = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!inputValue.trim()) return;
 
-    setHasInteracted(true);
-    setMessages(prev => [...prev, { type: 'user', content: userInput }]);
-    setInputValue('');
-    setIsLoading(true);
+  setIsLoading(true);
+  setHasInteracted(true);
 
-    try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: userInput,
-          conversationHistory: prepareConversationHistory()
-        }),
-      });
+  const newMessage = {
+      type: 'user' as const,
+      role: 'user' as const,
+      content: inputValue.trim(),
+      originalMessage: inputValue.trim(), // Dodajemy to pole
+      timestamp: Date.now()
+    };
 
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
+  setMessages(prev => [...prev, newMessage]);
+
+  try {
+    const requestBody = {
+      message: inputValue,
+      conversationHistory: messages,
+      searchParams: {
+        search_type: searchType,
+        query_mode: queryMode,  // Dodajemy nowy parametr
+        top_k: topK,
+        alpha: searchType === 'hybrid' ? alpha : undefined
       }
+    };
 
-      const data: ChatResponse = await response.json();
-      setMessages(prev => [...prev, { type: 'bot', content: data.response }]);
-      setSources(data.sources?.length > 0 ? data.sources : []);
-    } catch (error) {
-      console.error('Error:', error);
-      setMessages(prev => [...prev, {
-        type: 'bot',
-        content: 'Przepraszamy, wystąpił błąd podczas przetwarzania zapytania. Spróbuj ponownie później.'
-      }]);
-    } finally {
-      setIsLoading(false);
-      inputRef.current?.focus();
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-  };
+
+    const data = await response.json();
+
+    if (data.error) {
+      throw new Error(data.error);
+    }
+
+    setSources(data.sources || []);
+    setMessages(prev => [...prev, {
+      type: 'assistant',
+      role: 'assistant',
+      content: data.response,
+      timestamp: Date.now()
+    }]);
+
+  } catch (error) {
+    console.error('Error:', error);
+    setMessages(prev => [...prev, {
+      type: 'assistant',
+      role: 'assistant',
+      content: 'Wystąpił błąd podczas przetwarzania zapytania.',
+      timestamp: Date.now()
+    }]);
+  } finally {
+    setIsLoading(false);
+    setInputValue('');
+  }
+};
 
   return (
     <div className="h-screen bg-white flex flex-col">
+     <ChatSidebar onNewChat={handleNewChat} />
+     <SearchControls
+      searchType={searchType}
+      setSearchType={setSearchType}
+      topK={topK}
+      setTopK={setTopK}
+      queryMode={queryMode}
+      setQueryMode={setQueryMode}
+      alpha={alpha}
+      setAlpha={setAlpha}
+      />
       <div
         className={`fixed top-0 left-0 right-0 z-50 bg-blue-900 transition-transform duration-200
           ${showBanner ? 'translate-y-0' : '-translate-y-full'}`}
@@ -296,16 +357,19 @@ const MedicalChatbot = () => {
 
               <div className={`p-4 ${messages.length > 0 ? 'bg-gray-50 rounded-xl' : ''}`}>
                 {messages.map((message, index) => (
-                  <div
-                    key={index}
-                    className={`mb-4 p-3 rounded-xl max-w-[80%] ${
-                      message.type === 'user'
-                        ? 'ml-auto bg-blue-50 text-gray-800'
-                        : 'bg-white border border-gray-200 text-gray-800 shadow-sm'
-                    }`}
-                  >
-                    {message.content}
-                  </div>
+                    <div
+                        key={index}
+                        className={`mb-4 p-3 rounded-xl max-w-[80%] ${
+                          message.type === 'user'
+                            ? 'ml-auto bg-blue-50'
+                            : 'bg-white border border-gray-200 shadow-sm'
+                        }`}
+                      >
+                        <FormattedMessage
+                          content={message.content}
+                          type={message.type}
+                        />
+                      </div>
                 ))}
                 {isLoading && (
                   <div className="flex items-center space-x-2 text-sm text-gray-500">
@@ -384,37 +448,52 @@ const MedicalChatbot = () => {
               </div>
               <ScrollArea className="h-[calc(100%-36px)]">
                 <table className="w-full table-fixed">
-                  <tbody className="divide-y divide-gray-200">
-                    {(hasInteracted ? (sources.length > 0 ? sources : exampleRecords) : []).map((result, index) => (
-                      <tr key={index} className="hover:bg-gray-50">
-                        {columns.map((column) => (
-                          <td
-                            key={`${index}-${column.key}`}
-                            style={{ width: column.width }}
-                            className="px-4 py-2 text-sm text-gray-900 truncate"
-                          >
-                            {column.format(result[column.key])}
+                    <tbody className="divide-y divide-gray-200">
+                      {sources.map((result, index) => (
+                        <tr key={index} className="hover:bg-gray-50">
+                          {columns.map((column) => (
+                            <td
+                              key={`${index}-${column.key}`}
+                              style={{ width: column.width }}
+                              className="px-4 py-2 text-sm text-gray-900 truncate"
+                            >
+                              {column.key === 'title' ? (
+                                  <CustomTooltip
+                                    text={result.title || ''}
+                                    onClick={() => setSelectedStudy(result)}
+                                  >
+                                    <span className="block truncate">
+                                      {column.format(result[column.key], index)}
+                                    </span>
+                                  </CustomTooltip>
+                                ) : (
+                                  column.format(result[column.key], index)
+)}
+                            </td>
+                          ))}
+                          <td className="px-4 py-2 text-sm w-20">
+                            <button
+                              onClick={() => setSelectedStudy(result)}
+                              className="text-blue-600 hover:text-blue-900"
+                            >
+                              Pokaż
+                            </button>
                           </td>
-                        ))}
-                        <td className="px-4 py-2 text-sm w-20">
-                          <a
-                            href={result.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-900"
-                          >
-                            Otwórz
-                          </a>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
+                        </tr>
+                      ))}
+                    </tbody>
                 </table>
               </ScrollArea>
             </div>
           </div>
         </footer>
       </div>
+      {selectedStudy && (
+        <StudyCard
+          study={selectedStudy}
+          onClose={() => setSelectedStudy(null)}
+        />
+      )}
     </div>
   );
 };
