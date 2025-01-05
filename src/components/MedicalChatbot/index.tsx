@@ -124,8 +124,8 @@ const exampleRecords = [
 ];
 
 const BANNER_HEIGHT = 40;
-const SCROLL_THRESHOLD = 50;
-const SCROLL_DEBOUNCE = 50;
+const SCROLL_THRESHOLD = 200;
+const SCROLL_DEBOUNCE = 200;
 const searchModule = new SearchModule();
 
 const MedicalChatbot = () => {

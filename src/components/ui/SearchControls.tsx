@@ -37,7 +37,7 @@ const SearchControls: React.FC<SearchControlsProps> = ({
   ];
 
   return (
-    <div className="fixed right-0 top-1/2 -translate-y-1/2 translate-x-[85%] hover:translate-x-0 transition-all duration-300 z-10">
+    <div className="fixed right-0 top-1/2 -translate-y-1/2 translate-x-[99%] hover:translate-x-0 transition-all duration-300 z-10">
       <Card className="w-64 h-[80vh] bg-white/50 backdrop-blur-sm shadow-lg relative rounded-l-lg">
         <div className="p-4 space-y-6">
           {/* Tryb zapytań */}
