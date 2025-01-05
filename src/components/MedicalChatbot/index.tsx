@@ -258,7 +258,7 @@ const handleSendMessage = async (e: React.FormEvent) => {
       }
     };
 
-    const response = await fetch('/api/chat', {
+    const response = await fetch('${process.env.NEXT_PUBLIC_API_URL}i/chat', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
