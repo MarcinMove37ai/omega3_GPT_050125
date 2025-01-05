@@ -22,7 +22,7 @@ interface ChatResponse {
   sources: Array<any>;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://vccgdem7g6.execute-api.eu-north-1.amazonaws.com/dev';
 
 // Example records to show after first interaction
 const exampleRecords = [
@@ -239,22 +239,24 @@ const handleSendMessage = async (e: React.FormEvent) => {
   setHasInteracted(true);
 
   const newMessage = {
-      type: 'user' as const,
-      role: 'user' as const,
-      content: inputValue.trim(),
-      originalMessage: inputValue.trim(), // Dodajemy to pole
-      timestamp: Date.now()
-    };
+    type: 'user' as const,
+    role: 'user' as const,
+    content: inputValue.trim(),
+    originalMessage: inputValue.trim(),
+    timestamp: Date.now()
+  };
 
   setMessages(prev => [...prev, newMessage]);
 
   try {
+    console.log('Sending request to:', `${API_URL}/chat`);
+
     const requestBody = {
       message: inputValue,
       conversationHistory: messages,
       searchParams: {
         search_type: searchType,
-        query_mode: queryMode,  // Dodajemy nowy parametr
+        query_mode: queryMode,
         top_k: topK,
         alpha: searchType === 'hybrid' ? alpha : undefined
       }
@@ -264,7 +266,9 @@ const handleSendMessage = async (e: React.FormEvent) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Origin': window.location.origin
       },
+      credentials: 'include',
       body: JSON.stringify(requestBody)
     });
 
@@ -273,6 +277,7 @@ const handleSendMessage = async (e: React.FormEvent) => {
     }
 
     const data = await response.json();
+    console.log('Response data:', data);
 
     if (data.error) {
       throw new Error(data.error);
@@ -291,7 +296,7 @@ const handleSendMessage = async (e: React.FormEvent) => {
     setMessages(prev => [...prev, {
       type: 'assistant',
       role: 'assistant',
-      content: 'Wystąpił błąd podczas przetwarzania zapytania.',
+      content: `Błąd połączenia z API: ${error instanceof Error ? error.message : 'Unknown error'}`,
       timestamp: Date.now()
     }]);
   } finally {
