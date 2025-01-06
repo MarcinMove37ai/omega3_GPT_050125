@@ -127,7 +127,9 @@ const exampleRecords = [
 
 const BANNER_HEIGHT = 40;
 const SCROLL_THRESHOLD = 200;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const SCROLL_DEBOUNCE = 200;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const searchModule = new SearchModule();
 
 const MedicalChatbot = () => {
@@ -276,7 +278,7 @@ const handleSendMessage = async (e: React.FormEvent) => {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as ChatResponse;
     console.log('Response data:', data);
 
     if (data.error) {
