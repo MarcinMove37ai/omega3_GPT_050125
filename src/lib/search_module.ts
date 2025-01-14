@@ -11,14 +11,16 @@ export class SearchModule {
     total_found: number;
   }> {
     try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
       console.log('[SearchModule] Rozpoczynam zapytanie:', {
+        apiUrl,
         queries: params.queries,
         search_type: params.searchType,
         top_k: params.topK,
         alpha: params.alpha
       });
 
-      const response = await fetch('http://backend:8000/search', {
+      const response = await fetch(`${apiUrl}/search`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -38,6 +40,7 @@ export class SearchModule {
 
       const data = await response.json();
       console.log('[SearchModule] Otrzymane wyniki:', {
+        url: `${apiUrl}/search`,
         count: data.results?.length || 0,
         total: data.total || 0
       });
@@ -49,6 +52,7 @@ export class SearchModule {
 
     } catch (error) {
       console.error('[SearchModule] Błąd:', error);
+      console.error('[SearchModule] URL:', process.env.NEXT_PUBLIC_API_URL);
       throw error; // Przekazujemy błąd wyżej, żeby mógł być obsłużony przez route.ts
     }
   }

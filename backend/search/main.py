@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, validator
 from typing import Optional, List, Dict, Any
@@ -55,12 +55,17 @@ async def startup_event():
         raise
 
 
-@app.get("/health")
+@app.get("/health", status_code=status.HTTP_200_OK)
 async def health_check():
     """Endpoint do sprawdzania stanu aplikacji."""
+    if search_module is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Search module not initialized"
+        )
     return {
         "status": "healthy",
-        "search_module": search_module is not None
+        "search_module": True
     }
 
 

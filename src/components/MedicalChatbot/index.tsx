@@ -2,7 +2,7 @@
 
 import { SearchModule } from '@/lib/search_module';
 import React, { useState, useRef, useEffect } from 'react';
-import { Send } from 'lucide-react';
+import { Send, User, Settings } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import SearchControls from '@/components/ui/SearchControls';
 import StudyCard from '@/components/ui/StudyCard';
@@ -124,8 +124,8 @@ const exampleRecords = [
 ];
 
 const BANNER_HEIGHT = 40;
-const SCROLL_THRESHOLD = 50;
-const SCROLL_DEBOUNCE = 500;
+const SCROLL_THRESHOLD = 200;
+const SCROLL_DEBOUNCE = 100;
 const searchModule = new SearchModule();
 
 const MedicalChatbot = () => {
@@ -182,37 +182,43 @@ const columns = [
   },
 ];
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  useEffect(() => {
+useEffect(() => {
     const scrollArea = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
     if (!scrollArea) return;
 
-    const handleScroll = () => {
-      const currentScroll = scrollArea.scrollTop;
-      const isScrollingUp = currentScroll < lastScrollPosition.current;
-
-      if (currentScroll < SCROLL_THRESHOLD || (isScrollingUp && currentScroll < SCROLL_THRESHOLD * 2)) {
-        setShowBanner(true);
-      } else if (currentScroll > SCROLL_THRESHOLD && !isScrollingUp) {
-        setShowBanner(false);
-      }
-
-      lastScrollPosition.current = currentScroll;
+    const checkScrollability = () => {
+        const isScrollable = scrollArea.scrollHeight > scrollArea.clientHeight;
+        const isAtTop = scrollArea.scrollTop <= 10;
+        setShowBanner(!isScrollable || isAtTop);
     };
 
-    const debouncedHandleScroll = debounce(handleScroll, 10);
-    scrollArea.addEventListener('scroll', debouncedHandleScroll);
+    // Obserwator zmian w zawartości
+    const resizeObserver = new ResizeObserver(() => {
+        checkScrollability();
+    });
+
+    resizeObserver.observe(scrollArea);
+
+    // Obsługa scrollowania
+    const handleScroll = () => {
+        checkScrollability();
+    };
+
+    scrollArea.addEventListener('scroll', handleScroll);
+
+    // Inicjalne sprawdzenie
+    checkScrollability();
+
+    // Automatyczne przewijanie tylko po zmianie messages
+    if (messages.length > 0) {
+        scrollArea.scrollTop = scrollArea.scrollHeight;
+    }
 
     return () => {
-      scrollArea.removeEventListener('scroll', debouncedHandleScroll);
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
+        scrollArea.removeEventListener('scroll', handleScroll);
+        resizeObserver.disconnect();
     };
-  }, []);
+}, [messages]); // Efekt reaguje na zmiany messages
 
   const debounce = (func: Function, wait: number) => {
     let timeout: NodeJS.Timeout;
@@ -258,7 +264,9 @@ const handleSendMessage = async (e: React.FormEvent) => {
       }
     };
 
-    const response = await fetch('/api/chat', {
+    // Dodajemy baseUrl
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
+    const response = await fetch(`${baseUrl}/api/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -298,10 +306,10 @@ const handleSendMessage = async (e: React.FormEvent) => {
   }
 };
 
-  return (
-    <div className="h-screen bg-white flex flex-col">
-     <ChatSidebar onNewChat={handleNewChat} />
-     <SearchControls
+return (
+  <div className="h-screen bg-white flex flex-col">
+    <ChatSidebar onNewChat={handleNewChat} />
+    <SearchControls
       searchType={searchType}
       setSearchType={setSearchType}
       topK={topK}
@@ -310,51 +318,59 @@ const handleSendMessage = async (e: React.FormEvent) => {
       setQueryMode={setQueryMode}
       alpha={alpha}
       setAlpha={setAlpha}
-      />
-      <div
-        className={`fixed top-0 left-0 right-0 z-50 bg-blue-900 transition-transform duration-200
-          ${showBanner ? 'translate-y-0' : '-translate-y-full'}`}
-        style={{ height: BANNER_HEIGHT }}
-      >
-        <div className="h-full px-6 flex items-center">
-          <span className="text-sm text-white flex-1 text-center">
-            Dostęp bezpłatny ograniczony do 3 zapytań na dobę
+    />
+    <div
+      className={`fixed top-0 left-0 right-0 z-50 bg-blue-900 transition-transform duration-300 ease-in-out
+        ${showBanner ? 'translate-y-0' : '-translate-y-full'}`}
+      style={{ height: BANNER_HEIGHT }}
+    >
+      <div className="max-w-6xl mx-auto w-full h-full flex items-center">
+        <div className="w-full px-6 flex items-center justify-between">
+          <span className="text-sm text-white/50">
+            Czatuj z badaniami klinicznymi na temat Omega-3 oraz K2
           </span>
-          <button className="text-sm bg-transparent hover:bg-blue-800 px-4 py-1 rounded-lg border border-white text-white transition-colors">
-            Zaloguj
-          </button>
+          <span className="text-sm text-red-500/85">
+            Niech fakty naukowe wyniosą Twój biznes na wyższy poziom
+          </span>
         </div>
       </div>
+    </div>
 
       <div
         className="flex-1 flex flex-col max-w-6xl mx-auto w-full overflow-hidden transition-[margin] duration-200"
         style={{ marginTop: showBanner ? BANNER_HEIGHT : 0 }}
       >
         <div className="bg-white px-6 border-b border-gray-100 py-4">
-          <div className="relative">
-            <h1 className="text-xl text-gray-800 tracking-wide">
-              <span className="font-bold">omega3</span>
-              <span className="font-light">gpt.pl</span>
-            </h1>
-            <div className="w-1/3 h-px bg-gray-200 mt-2"></div>
+          <div className="flex justify-between items-center">
+            <div
+              className="relative group"
+              onClick={() => window.location.reload()}
+              style={{ cursor: 'pointer' }}
+              onMouseEnter={(e) => e.currentTarget.querySelector('div').style.width = '105%'}
+              onMouseLeave={(e) => e.currentTarget.querySelector('div').style.width = '150%'}
+            >
+              <h1 className="text-xl text-gray-800 tracking-wide">
+                <span className="font-bold">omega3</span>
+                <span className="font-light">gpt.pl</span>
+              </h1>
+              <div className="h-px bg-gray-200 mt-2 transition-all duration-300"
+                   style={{ width: '150%' }}>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                <User className="w-5 h-5 text-gray-500" />
+              </button>
+              <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                <Settings className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
           </div>
         </div>
 
         <div className="flex-1 overflow-hidden" ref={scrollAreaRef}>
           <ScrollArea className="h-full">
             <div className="px-6">
-              <div className="py-4">
-                <div className="text-right">
-                  <h2 className="text-lg text-gray-800 font-light">
-                    Czatuj z badaniami klinicznymi na temat Omega-3
-                  </h2>
-                  <h2 className="text-lg text-red-600 font-light">
-                    Niech fakty naukowe wyniosą Twój biznes na wyższy poziom
-                  </h2>
-                  <div className="w-2/3 h-px bg-gray-200 mt-2 ml-auto"></div>
-                </div>
-              </div>
-
               <div className={`p-4 ${messages.length > 0 ? 'bg-gray-50 rounded-xl' : ''}`}>
                 {messages.map((message, index) => (
                     <div
