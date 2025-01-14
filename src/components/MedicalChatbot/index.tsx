@@ -1,5 +1,9 @@
 'use client';
 
+import MobileNavigation from '@/components/ui/MobileNavigation';
+import MobileMenuOverlay from '@/components/ui/MobileMenuOverlay';
+import { MessageCircle, MessageSquarePlus } from 'lucide-react';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import { SearchModule } from '@/lib/search_module';
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, User, Settings } from 'lucide-react';
@@ -10,6 +14,7 @@ import type { Source } from '@/types';
 import FormattedMessage from '@/components/ui/FormattedMessage';
 import CustomTooltip from "@/components/ui/CustomTooltip";
 import ChatSidebar from '@/components/ui/ChatSidebar';
+
 
 interface Message {
   type: 'user' | 'assistant';
@@ -129,6 +134,10 @@ const SCROLL_DEBOUNCE = 100;
 const searchModule = new SearchModule();
 
 const MedicalChatbot = () => {
+
+  const isMobile = useIsMobile();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -157,30 +166,36 @@ const handleNewChat = () => {
 
 const columns = [
   {
-    key: 'index', // zmiana z 'similarity'
+    key: 'index',
     label: 'Lp.',
-    width: '60px', // możemy zmniejszyć szerokość, bo liczby porządkowe będą krótsze
-    format: (_: any, index: number) => (index + 1), // formatowanie zwraca numer porządkowy
+    width: isMobile ? '40px' : '60px',
+    format: (_: any, index: number) => (index + 1),
+    showOnMobile: true
   },
   {
     key: 'PMID',
     label: 'PMID',
     width: '100px',
     format: (value: string) => value || 'N/A',
+    showOnMobile: false
   },
   {
     key: 'domain_primary',
     label: 'Dziedzina',
     width: '120px',
     format: (value: string) => value || 'N/A',
+    showOnMobile: false
   },
   {
     key: 'title',
     label: 'Tytuł',
-    width: '400px',
+    width: isMobile ? 'calc(100% - 40px)' : '400px',
     format: (value: string) => value || 'N/A',
+    showOnMobile: true
   },
 ];
+
+
 
 useEffect(() => {
     const scrollArea = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
@@ -219,6 +234,10 @@ useEffect(() => {
         resizeObserver.disconnect();
     };
 }, [messages]); // Efekt reaguje na zmiany messages
+
+useEffect(() => {
+    console.log('Is mobile:', isMobile);
+}, [isMobile]);
 
   const debounce = (func: Function, wait: number) => {
     let timeout: NodeJS.Timeout;
@@ -308,30 +327,52 @@ const handleSendMessage = async (e: React.FormEvent) => {
 
 return (
   <div className="h-screen bg-white flex flex-col">
-    <ChatSidebar onNewChat={handleNewChat} />
-    <SearchControls
-      searchType={searchType}
-      setSearchType={setSearchType}
-      topK={topK}
-      setTopK={setTopK}
-      queryMode={queryMode}
-      setQueryMode={setQueryMode}
-      alpha={alpha}
-      setAlpha={setAlpha}
+  {/* Desktop Sidebar */}
+  <ChatSidebar
+    onNewChat={handleNewChat}
+    isMobile={isMobile}
+  />
+
+  {/* Mobile Menu */}
+  {isMobile && (
+    <MobileMenuOverlay
+      isOpen={menuOpen}
+      onClose={() => setMenuOpen(false)}
+      onNewChat={handleNewChat}
     />
+  )}
+
+  <SearchControls
+    searchType={searchType}
+    setSearchType={setSearchType}
+    topK={topK}
+    setTopK={setTopK}
+    queryMode={queryMode}
+    setQueryMode={setQueryMode}
+    alpha={alpha}
+    setAlpha={setAlpha}
+  />
     <div
-      className={`fixed top-0 left-0 right-0 z-50 bg-blue-900 transition-transform duration-300 ease-in-out
+      className={`fixed top-0 left-0 right-0 z-20 bg-blue-900 transition-transform duration-300 ease-in-out
         ${showBanner ? 'translate-y-0' : '-translate-y-full'}`}
       style={{ height: BANNER_HEIGHT }}
     >
       <div className="max-w-6xl mx-auto w-full h-full flex items-center">
         <div className="w-full px-6 flex items-center justify-between">
-          <span className="text-sm text-white/50">
-            Czatuj z badaniami klinicznymi na temat Omega-3 oraz K2
+                    <span className={`text-sm ${isMobile ? 'text-white/50 text-center w-full' : 'text-white/50'}`}>
+            {isMobile ? (
+              <>
+                Czatuj z badaniami klinicznymi na temat <span className="text-rose-500">Omega-3</span> i <span className="text-rose-500">K2</span>
+              </>
+            ) : (
+              'Czatuj z badaniami klinicznymi na temat Omega-3 i K2'
+            )}
           </span>
-          <span className="text-sm text-red-500/85">
-            Niech fakty naukowe wyniosą Twój biznes na wyższy poziom
-          </span>
+          {!isMobile && (
+            <span className="text-sm text-red-500/85">
+              Niech fakty naukowe wyniosą Twój biznes na wyższy poziom
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -340,46 +381,49 @@ return (
         className="flex-1 flex flex-col max-w-6xl mx-auto w-full overflow-hidden transition-[margin] duration-200"
         style={{ marginTop: showBanner ? BANNER_HEIGHT : 0 }}
       >
-        <div className="bg-white px-6 border-b border-gray-100 py-4">
-          <div className="flex justify-between items-center">
-            <div
-              className="relative group"
-              onClick={() => window.location.reload()}
-              style={{ cursor: 'pointer' }}
-              onMouseEnter={(e) => e.currentTarget.querySelector('div').style.width = '105%'}
-              onMouseLeave={(e) => e.currentTarget.querySelector('div').style.width = '150%'}
-            >
-              <h1 className="text-xl text-gray-800 tracking-wide">
-                <span className="font-bold">omega3</span>
-                <span className="font-light">gpt.pl</span>
-              </h1>
-              <div className="h-px bg-gray-200 mt-2 transition-all duration-300"
-                   style={{ width: '150%' }}>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                <User className="w-5 h-5 text-gray-500" />
-              </button>
-              <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                <Settings className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-          </div>
+        {isMobile ? (
+  <MobileNavigation
+  onToggleSidebar={() => setMenuOpen(!menuOpen)}
+/>
+) : (
+  <div className="bg-white px-6 border-b border-gray-100 py-4">
+    <div className="flex justify-between items-center">
+      <div
+        className="relative group"
+        onClick={() => window.location.reload()}
+        style={{ cursor: 'pointer' }}
+        onMouseEnter={(e) => e.currentTarget.querySelector('div').style.width = '105%'}
+        onMouseLeave={(e) => e.currentTarget.querySelector('div').style.width = '150%'}
+      >
+        <h1 className="text-xl text-gray-800 tracking-wide">
+          <span className="font-bold">omega3</span>
+          <span className="font-light">gpt.pl</span>
+        </h1>
+        <div className="h-px bg-gray-200 mt-2 transition-all duration-300"
+             style={{ width: '150%' }}>
         </div>
+      </div>
+      <div className="flex items-center gap-4">
+        <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+          <User className="w-5 h-5 text-gray-500" />
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
         <div className="flex-1 overflow-hidden" ref={scrollAreaRef}>
           <ScrollArea className="h-full">
             <div className="px-6">
-              <div className={`p-4 ${messages.length > 0 ? 'bg-gray-50 rounded-xl' : ''}`}>
+              <div className={`p-2 md:p-4 ${messages.length > 0 ? 'bg-gray-50 rounded-xl' : ''}`}>
                 {messages.map((message, index) => (
                     <div
                         key={index}
-                        className={`mb-4 p-3 rounded-xl max-w-[80%] ${
+                        className={`mb-4 p-3 rounded-xl w-[98%] ${
                           message.type === 'user'
                             ? 'ml-auto bg-blue-50'
                             : 'bg-white border border-gray-200 shadow-sm'
-                        }`}
+                        } ${isMobile ? 'mx-auto' : 'max-w-[80%]'}`}
                       >
                         <FormattedMessage
                           content={message.content}
@@ -413,10 +457,12 @@ return (
             />
             <button
               onClick={handleSendMessage}
-              className="px-8 bg-blue-900 text-white rounded-xl hover:bg-blue-800 shadow-sm flex items-center justify-center"
+              className={`${
+                isMobile ? 'p-5' : 'px-8 py-4'
+              } bg-blue-900 text-white rounded-xl hover:bg-blue-800 shadow-sm flex items-center justify-center`}
             >
-              <Send className="w-4 h-4 mr-2" />
-              Wyślij
+              <Send className="w-4 h-4" />
+              {!isMobile && <span className="ml-2">Wyślij</span>}
             </button>
           </div>
 
@@ -442,22 +488,26 @@ return (
 
           <div className={`${isTableExpanded ? 'h-[420px]' : 'h-32'} rounded-xl shadow-lg bg-white transition-all duration-300`}>
             <div className="w-full h-full relative">
-              <div className="sticky top-0 bg-gray-50 z-10">
+              <div className="sticky top-0 bg-gray-50 z-[5]">
                 <table className="w-full table-fixed">
                   <thead>
                     <tr>
-                      {columns.map((column) => (
-                        <th
-                          key={column.key}
-                          style={{ width: column.width }}
-                          className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          {column.label}
+                      {columns
+                        .filter(column => !isMobile || column.showOnMobile)
+                        .map((column) => (
+                          <th
+                            key={column.key}
+                            style={{ width: column.width }}
+                            className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                          >
+                            {column.label}
+                          </th>
+                        ))}
+                      {!isMobile && (
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
+                          Link
                         </th>
-                      ))}
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
-                        Link
-                      </th>
+                      )}
                     </tr>
                   </thead>
                 </table>
@@ -467,34 +517,34 @@ return (
                     <tbody className="divide-y divide-gray-200">
                       {sources.map((result, index) => (
                         <tr key={index} className="hover:bg-gray-50">
-                          {columns.map((column) => (
-                            <td
-                              key={`${index}-${column.key}`}
-                              style={{ width: column.width }}
-                              className="px-4 py-2 text-sm text-gray-900 truncate"
-                            >
-                              {column.key === 'title' ? (
-                                  <CustomTooltip
-                                    text={result.title || ''}
-                                    onClick={() => setSelectedStudy(result)}
-                                  >
-                                    <span className="block truncate">
-                                      {column.format(result[column.key], index)}
-                                    </span>
-                                  </CustomTooltip>
-                                ) : (
-                                  column.format(result[column.key], index)
-)}
-                            </td>
-                          ))}
-                          <td className="px-4 py-2 text-sm w-20">
-                            <button
-                              onClick={() => setSelectedStudy(result)}
-                              className="text-blue-600 hover:text-blue-900"
-                            >
-                              Pokaż
-                            </button>
+                          {columns
+                        .filter(column => !isMobile || column.showOnMobile)
+                        .map((column) => (
+                          <td
+                            key={`${index}-${column.key}`}
+                            style={{ width: column.width }}
+                            className={`px-4 py-2 text-sm text-gray-900 ${column.key === 'title' ? '' : 'truncate'}`}
+                            onClick={column.key === 'title' ? () => setSelectedStudy(result) : undefined}
+                          >
+                            {column.key === 'title' ? (
+                                <span className="block truncate text-blue-600 hover:text-blue-900 cursor-pointer">
+                                  {column.format(result[column.key], index)}
+                                </span>
+                              ) : (
+                                column.format(result[column.key], index)
+                              )}
                           </td>
+                        ))}
+                      {!isMobile && (
+                        <td className="px-4 py-2 text-sm w-20">
+                          <button
+                            onClick={() => setSelectedStudy(result)}
+                            className="text-blue-600 hover:text-blue-900"
+                          >
+                            Pokaż
+                          </button>
+                        </td>
+                      )}
                         </tr>
                       ))}
                     </tbody>

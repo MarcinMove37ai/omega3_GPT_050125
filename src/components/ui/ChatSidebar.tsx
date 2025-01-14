@@ -4,11 +4,22 @@ import { MessageSquarePlus } from 'lucide-react';
 
 interface ChatSidebarProps {
   onNewChat?: () => void;
+  isMobile?: boolean;
+  isOpen?: boolean;
 }
 
-const ChatSidebar: React.FC<ChatSidebarProps> = ({ onNewChat }) => {
+const ChatSidebar: React.FC<ChatSidebarProps> = ({
+  onNewChat,
+  isMobile = false,
+  isOpen = false
+}) => {
   return (
-    <div className="fixed left-0 top-1/2 -translate-y-1/2 -translate-x-[75%] hover:translate-x-0 transition-all duration-300 z-10">
+    <div className={`fixed left-0 top-1/2 -translate-y-1/2 transition-all duration-300 z-10
+      ${isMobile
+        ? `${isOpen ? 'translate-x-0' : '-translate-x-full'}`
+        : '-translate-x-[75%] hover:translate-x-0'
+      }`}
+    >
       <Card className="w-64 h-[80vh] bg-white/50 backdrop-blur-sm shadow-lg relative rounded-r-lg">
         <div className="p-4 space-y-6 h-full">
           {/* Przycisk Nowy chat */}
