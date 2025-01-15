@@ -362,7 +362,7 @@ return (
                     <span className={`text-sm ${isMobile ? 'text-white/50 text-center w-full' : 'text-white/50'}`}>
             {isMobile ? (
               <>
-                Czatuj z badaniami klinicznymi na temat <span className="text-rose-500">Omega-3</span> i <span className="text-rose-500">K2</span>
+                Czatuj z badaniami klinicznymi na temat <span className="text-rose-500">Omega-3</span>
               </>
             ) : (
               'Czatuj z badaniami klinicznymi na temat Omega-3 i K2'
